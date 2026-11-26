@@ -1,0 +1,49 @@
+name: Build
+
+on:
+  # Every pull request, on any branch it targets.
+  pull_request:
+  # What lands on main, merged pull requests included.
+  push:
+    branches: [main]
+  # Runs by hand from the Actions tab, or `gh workflow run Build`.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      # The version and components pinned in rust-toolchain.toml.
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+      # The release command of README.md, unchanged.
+      - name: Build
+        run: cargo build --release --locked -p victory
+      # Laid out the way Play-VIctory.cmd expects it: the runner under the name
+      # it looks for first, the launcher and the example config beside it.
+      - name: Stage the portable folder
+        shell: pwsh
+        run: |
+          $stage = 'stage/victory-windows-x64'
+          New-Item -ItemType Directory -Force $stage | Out-Null
+          Copy-Item target/release/victory.exe "$stage/victory-3d-rtx-pareto-residency.exe"
+          Copy-Item Play-VIctory.cmd, victory.example.toml, README.md $stage
+      - name: Upload the Windows x64 ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: victory-windows-x64
+          path: stage/victory-windows-x64
+          if-no-files-found: error
+          retention-days: 14

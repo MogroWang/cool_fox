@@ -50,3 +50,22 @@ jobs:
           path: stage/victory-windows-x64
           if-no-files-found: error
           retention-days: 14
+      # The build README.md's measurements are of, and the one that logs why a
+      # draw was dropped: `scripts\play.ps1` takes it with its default -Build.
+      - name: Build, diagnostics
+        run: cargo build --profile diag --locked -p victory --features diagnostics
+      - name: Stage the diagnostics folder
+        shell: pwsh
+        run: |
+          $stage = 'stage-diag/victory-windows-x64-diag'
+          New-Item -ItemType Directory -Force "$stage/target/diag", "$stage/scripts" | Out-Null
+          Copy-Item target/diag/victory.exe "$stage/target/diag/victory.exe"
+          Copy-Item Play-VIctory.cmd, victory.example.toml, README.md $stage
+          Copy-Item scripts/play.ps1 "$stage/scripts/play.ps1"
+      - name: Upload the diagnostics ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: victory-windows-x64-diag
+          path: stage-diag/victory-windows-x64-diag
+          if-no-files-found: error
+          retention-days: 14

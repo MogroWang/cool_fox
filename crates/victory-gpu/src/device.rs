@@ -370,11 +370,13 @@ extern "system" fn unknown_pipeline<const SLOT: usize>(
         unsafe { *out = std::ptr::null() };
     }
     if calls <= 4 || calls.is_power_of_two() {
-        // Sixteen 64-bit words at `at`, read through the kernel: neither
-        // pointer is known to be mapped.
+        // Words at `at`, read through the kernel: neither pointer is known to
+        // be mapped. Sixty-four at the description and thirty-two at each of
+        // the first four words it holds, so that the layout can be read off
+        // one log instead of one build per guess.
         #[cfg(windows)]
-        let words = |at: usize| -> Option<Vec<u64>> {
-            let mut bytes = [0u8; 128];
+        let words = |at: usize, count: usize| -> Option<Vec<u64>> {
+            let mut bytes = vec![0u8; count * 8];
             (at != 0 && crate::host::read_into(at as *const u8, &mut bytes)).then(|| {
                 bytes
                     .as_chunks::<8>().0.iter()
@@ -383,16 +385,29 @@ extern "system" fn unknown_pipeline<const SLOT: usize>(
             })
         };
         #[cfg(not(windows))]
-        let words = |_: usize| None::<Vec<u64>>;
-        let description = words(desc as usize);
-        let first = description
-            .as_ref()
-            .and_then(|w| words(w[0] as usize));
+        let words = |_: usize, _: usize| None::<Vec<u64>>;
+        let description = words(desc as usize, 64);
+        let at = |n: usize| {
+            description
+                .as_ref()
+                .and_then(|w| w.get(n))
+                .copied()
+                .unwrap_or(0) as usize
+        };
+        let (at_0, at_1, at_2, at_3) = (
+            words(at(0), 32),
+            words(at(1), 32),
+            words(at(2), 32),
+            words(at(3), 32),
+        );
         tracing::warn!(
             slot = format_args!("{:#x}", SLOT),
             calls,
             description = format_args!("{description:x?}"),
-            first_points_at = format_args!("{first:x?}"),
+            at_0 = format_args!("{at_0:x?}"),
+            at_1 = format_args!("{at_1:x?}"),
+            at_2 = format_args!("{at_2:x?}"),
+            at_3 = format_args!("{at_3:x?}"),
             "a pipeline creation method that is not implemented: the title goes without this pipeline"
         );
     }

@@ -31,15 +31,18 @@ jobs:
       # The release command of README.md, unchanged.
       - name: Build
         run: cargo build --release --locked -p victory
-      # Laid out the way Play-VIctory.cmd expects it: the runner under the name
-      # it looks for first, the launcher and the example config beside it.
+      # Both launchers of README.md, each with the layout it looks for:
+      # Play-VIctory.cmd wants the runner under this name beside itself, and
+      # scripts/play.ps1 wants target\release\victory.exe above it.
       - name: Stage the portable folder
         shell: pwsh
         run: |
           $stage = 'stage/victory-windows-x64'
-          New-Item -ItemType Directory -Force $stage | Out-Null
+          New-Item -ItemType Directory -Force "$stage/target/release", "$stage/scripts" | Out-Null
+          Copy-Item target/release/victory.exe "$stage/target/release/victory.exe"
           Copy-Item target/release/victory.exe "$stage/victory-3d-rtx-pareto-residency.exe"
           Copy-Item Play-VIctory.cmd, victory.example.toml, README.md $stage
+          Copy-Item scripts/play.ps1 "$stage/scripts/play.ps1"
       - name: Upload the Windows x64 ZIP
         uses: actions/upload-artifact@v4
         with:

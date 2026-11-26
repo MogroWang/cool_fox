@@ -1,9 +1,13 @@
 name: CI
 
 on:
+  # Every pull request, on any branch it targets.
   pull_request:
+  # What lands on main, merged pull requests included.
   push:
     branches: [main]
+  # Runs by hand from the Actions tab, or `gh workflow run CI`.
+  workflow_dispatch:
 
 permissions:
   contents: read
